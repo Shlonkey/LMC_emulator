@@ -5,6 +5,9 @@
 #include<fcntl.h>
 #include<sys/mman.h>
 #include<unistd.h>
+#include<stdint.h>
+
+typedef uint8_t byte;
 
 void copy_char_array(char* source, char* dest, size_t length)
 {
@@ -102,10 +105,80 @@ char* remove_repeated_whitespace(char* char_stream)
 	return new_char_stream;
 }
 
+char* strip(char* non_stripped_stream)
+{
+	size_t length = 0;
+	for(size_t i = 0; non_stripped_stream[i] != '\0'; i++)
+	{
+		length++;
+	}
+
+	int first_ws = (non_stripped_stream[0] == ' ' ? 1 : 0);
+	int last_ws = (non_stripped_stream[length - 1] == ' ' ? 1 : 0);
+	size_t chars_to_remove = first_ws + last_ws;
+	size_t new_length = length - chars_to_remove;
+	char* stripped_stream = (char*)malloc(sizeof(char) * new_length);
+	int offset = 0;
+	for(size_t i = 0; non_stripped_stream[i] != '\0'; i++)
+	{
+		char c = non_stripped_stream[i];
+		if(i == 0 && c == ' ') {
+			offset++;
+			continue; }
+		else if(i == length - 1 && c == ' ') {
+			offset++;
+			continue; }
+		stripped_stream[i - offset] = c;
+	}
+	return stripped_stream;
+}
+
+size_t split_stream_by_char(char* stream, char*** out_tokens, size_t** out_token_lengths, char c)
+{
+	size_t token_count = 1;	
+	for(size_t index = 0; stream[index] != '\0'; index++)
+	{
+		token_count += (stream[index] == ' ' ? 1 : 0);
+	}
+
+	char** local_out_tokens = (char**)malloc(sizeof(char*) * token_count);
+	size_t* split_lengths = malloc(sizeof(size_t) * token_count);
+
+	for(size_t index = 0, token_index = 0; stream[index] != '\0'; index++)
+	{
+		char current_char = stream[index];
+		if(current_char == ' ') {
+			token_index++;
+		} else {
+			split_lengths[token_index]++;
+		}
+	}
+	
+	*out_token_lengths = split_lengths;
+
+	for(size_t index = 0; index < token_count; index++)
+	{
+		local_out_tokens[index] = (char*)malloc(sizeof(char) * split_lengths[index]);
+	}
+	
+	size_t token_offset = 0;
+	for(size_t token_index = 0; token_index < token_count; token_index++)
+	{
+		for(size_t within_token_char_index = 0; within_token_char_index < split_lengths[token_index]; within_token_char_index++)
+		{
+			local_out_tokens[token_index][within_token_char_index] = stream[token_offset + within_token_char_index];
+		}
+		token_offset += (split_lengths[token_index] + 1);
+	}
+
+	*out_tokens = local_out_tokens;
+	return token_count;
+}
+
 int main(int argc, char* argv[])
 {
 	struct stat sb;
-	int fd = open("rom.asm", O_RDONLY);
+	int fd = open(argv[1], O_RDONLY);
         fstat(fd, &sb);           /* To obtain file size */
 	int file_size = sb.st_size;
 	char* address = (char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -126,10 +199,44 @@ int main(int argc, char* argv[])
 	char* new_char_stream = unpair_lables(char_stream);
 	free(char_stream);
 
-	char* token_char_stream = remove_repeated_whitespace(new_char_stream);
+	char* token_char_stream_not_stripped = remove_repeated_whitespace(new_char_stream);
+	free(new_char_stream);
+	
+	char* token_char_stream_stripped = strip(token_char_stream_not_stripped);
+	free(token_char_stream_not_stripped);
+	
+	char** tokens;
+	size_t* token_lengths;
+       	size_t num_tokens = split_stream_by_char(token_char_stream_stripped, &tokens, &token_lengths, ' ');
 
-	//Now all tokens (opcodes, constants and labels are seperated) we need to get variable names and defult values, and lable jump addresses as well as converting PNEUMONICS to machinecode. and finally assiging variable addresses.
+	free(token_char_stream_stripped);
+	//Now all tokens (opcodes, constants and labels are seperated by into tokens) we need to get variable names and defult values, and lable jump addresses as well as converting PNEUMONICS to machinecode. and finally assiging variable addresses.
 
-	printf("%s", token_char_stream);
+	size_t number_of_variables = 0;
+	size_t number_of_lables = 0;
+	for(size_t token_index = 0; token_index < num_tokens; token_index++)
+	{
+		char* token = tokens[token_index];
+		if(token[token_lengths[token_index] - 1] == ':')
+			number_of_lables++;
+		else if(token_lengths[token_index] != 3)
+			continue;
+		else if(token[0] == 'D' && token[1] == 'A' && token[2] == 'T')
+			number_of_variables++;
+	}
+	size_t number_of_non_variable_or_lable_tokens = num_tokens - number_of_variables - number_of_lables;
+
+	char** variable_names = (char**)malloc(sizeof(char*) * number_of_variables); 
+	byte* variable_values = (byte*)malloc(sizeof(byte) * number_of_variables);
+	byte* variable_addresses = (byte*)malloc(sizeof(byte) * number_of_variables);
+
+	char** lable_names = (char**)malloc(sizeof(char*) * number_of_lables);
+	byte* lable_addresses = (byte*)malloc(sizeof(byte) * number_of_lables);
+	
+	char** non_variable_or_lable_tokens = (char**)malloc(sizeof(char*) * number_of_non_variable_or_lable_tokens);
+
+	//Now we have allocated memory for all the token data, split the tokens into thier representative info.
+	//I.e. extract data from lables and dat tokens and determine default values.
+
 	return 0;
 }
