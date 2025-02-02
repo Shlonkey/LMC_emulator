@@ -1,18 +1,14 @@
-all: main assembler
+all: enumator assembler compiler
 
-debug_all: debug_main debug_assembler
-
-main:
-	gcc main.c -o main
+emulator:
+	gcc emulator.c -o emulator
 
 assembler:
 	gcc assembler.c -o assembler
 
-debug_main:
-	gcc main.c -o main -ggdb
-
-debug_assembler:
-	gcc assembler.c -o assembler -ggdb
+compiler:
+	gcc compiler.c -o compiler
 
 clean:
-	rm -f main assembler rom.bin
+	rm -f emulator assembler compiler
+
