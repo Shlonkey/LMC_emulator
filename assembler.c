@@ -7,6 +7,8 @@
 #include<unistd.h>
 #include<stdint.h>
 
+#define MEMORY_SIZE 0xFF
+
 typedef uint8_t byte;
 
 void copy_char_array(char* source, char* dest, size_t length)
@@ -213,30 +215,112 @@ int main(int argc, char* argv[])
 	//Now all tokens (opcodes, constants and labels are seperated by into tokens) we need to get variable names and defult values, and lable jump addresses as well as converting PNEUMONICS to machinecode. and finally assiging variable addresses.
 
 	size_t number_of_variables = 0;
+	size_t number_of_tokens_corresponding_to_variables = 0;
 	size_t number_of_lables = 0;
 	for(size_t token_index = 0; token_index < num_tokens; token_index++)
 	{
 		char* token = tokens[token_index];
 		if(token[token_lengths[token_index] - 1] == ':')
+		{
 			number_of_lables++;
-		else if(token_lengths[token_index] != 3)
-			continue;
-		else if(token[0] == 'D' && token[1] == 'A' && token[2] == 'T')
+			continue; }
+		else if(token_lengths[token_index] != 3) {
+			continue; }
+		else if(token[0] == 'D' && token[1] == 'A' && token[2] == 'T'){
 			number_of_variables++;
-	}
-	size_t number_of_non_variable_or_lable_tokens = num_tokens - number_of_variables - number_of_lables;
+			number_of_tokens_corresponding_to_variables += 2;
+			token_index++;
+			if(token_index < num_tokens - 1)
+			{
+				if(tokens[token_index + 1][0] == '0' && tokens[token_index + 1][1] == 'x')
+				{
+					number_of_tokens_corresponding_to_variables++;
+					token_index++;
+				}
+			}
+		}
 
+	}
+	size_t number_of_non_variable_or_lable_tokens = num_tokens - number_of_tokens_corresponding_to_variables - number_of_lables;
+	size_t* variable_name_lengths = (size_t*)malloc(sizeof(size_t) * number_of_variables); 
 	char** variable_names = (char**)malloc(sizeof(char*) * number_of_variables); 
 	byte* variable_values = (byte*)malloc(sizeof(byte) * number_of_variables);
 	byte* variable_addresses = (byte*)malloc(sizeof(byte) * number_of_variables);
 
+	size_t* lable_name_lengths = (size_t*)malloc(sizeof(size_t) * number_of_lables); 
 	char** lable_names = (char**)malloc(sizeof(char*) * number_of_lables);
 	byte* lable_addresses = (byte*)malloc(sizeof(byte) * number_of_lables);
-	
-	char** non_variable_or_lable_tokens = (char**)malloc(sizeof(char*) * number_of_non_variable_or_lable_tokens);
 
+	size_t* non_variable_or_lable_token_lengths = (size_t*)malloc(sizeof(size_t) * number_of_non_variable_or_lable_tokens); 
+	char** non_variable_or_lable_tokens = (char**)malloc(sizeof(char*) * number_of_non_variable_or_lable_tokens);
 	//Now we have allocated memory for all the token data, split the tokens into thier representative info.
 	//I.e. extract data from lables and dat tokens and determine default values.
+
+	byte location_counter = 0;
+	size_t variable_index = 0;
+	size_t lable_index = 0;
+	size_t non_variable_or_lable_index = 0;
+	for(size_t token_index = 0; token_index < num_tokens; token_index++)
+	{
+		char* token = tokens[token_index];
+		size_t token_length = token_lengths[token_index];
+		if(token[token_length - 1] == ':') {//Lable line
+			lable_name_lengths[lable_index] = token_length - 1;
+			lable_names[lable_index] = (char*)malloc(sizeof(char) * token_length - 1);
+			for(size_t i = 0; i < token_length - 1; i++)
+			{
+				lable_names[lable_index][i] = token[i];
+			}
+			lable_addresses[lable_index] = location_counter;
+			lable_index++;
+			continue; 
+		} if(token_length == 3 && token[0] == 'D' && token[1] == 'A' && token[2] == 'T') {
+			token_index++;
+			char* variable_name = tokens[token_index];
+			token_length = token_lengths[token_index];
+			variable_name_lengths[variable_index] = token_length;
+			variable_names[variable_index] = (char*)malloc(sizeof(char) * token_length);
+			for(size_t i = 0; i < token_length; i++)
+			{
+				variable_names[variable_index][i] = variable_name[i];
+			}
+			if(token_index < num_tokens - 1)
+			{
+				char* default_value = tokens[token_index + 1];
+				if(default_value[0] == '0' && default_value[1] == 'x')
+				{
+					byte value = strtol(default_value, NULL, 16);
+					variable_values[variable_index] = value;
+					token_index++;
+				}
+			}
+			variable_index++;
+			continue;
+		}
+		non_variable_or_lable_token_lengths[non_variable_or_lable_index] = token_length;
+		non_variable_or_lable_tokens[non_variable_or_lable_index] = (char*)malloc(sizeof(char) * token_length);
+		for(size_t i = 0; i < token_length; i++)
+		{
+			non_variable_or_lable_tokens[non_variable_or_lable_index][i] = token[i];
+		}
+		non_variable_or_lable_index++;
+		location_counter++;
+	}	
+	free(tokens);
+	free(token_lengths);
+	//We have now split the file into instruction_tokens, variables and lables.
+	//Now for each occurance of lable, replace with its address.
+
+	byte* program = (byte*)malloc(sizeof(byte) * MEMORY_SIZE);
+	for(size_t token_index = 0; token_index < number_of_non_variable_or_lable_tokens; token_index++)
+	{
+		char* token = non_variable_or_lable_tokens[token_index];
+		//if token in pneumonics, convert.
+		//else if token is lable replace with address byte
+		//else if token is variable, replace with address byte
+		//else if token is '0xAB' replace with 0xAB
+		//finally set variable address value to defaults.
+	}
 
 	return 0;
 }
