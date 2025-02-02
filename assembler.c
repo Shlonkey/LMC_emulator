@@ -6,10 +6,58 @@
 #include<sys/mman.h>
 #include<unistd.h>
 #include<stdint.h>
+#include<string.h>
 
-#define MEMORY_SIZE 0xFF
+#define MEMORY_SIZE 0x100
+
+#define HLT 0x00
+#define LDA 0x01
+#define STA 0x02
+#define ADD 0x03
+#define SUB 0x04
+#define INP 0x05
+#define OUT 0x06
+#define BRZ 0x07
+#define BRP 0x08
+#define BRA 0x09
+#define NOT_AN_INSTRUCTION 0xFF
 
 typedef uint8_t byte;
+
+byte decode_opcode(char* token)
+{
+	if(strcmp(token, "HLT") == 0)
+		return HLT;
+	if(strcmp(token, "LDA") == 0)
+		return LDA;
+	if(strcmp(token, "STA") == 0)
+		return STA;
+	if(strcmp(token, "ADD") == 0)
+		return ADD;
+	if(strcmp(token, "SUB") == 0)
+		return SUB;
+	if(strcmp(token, "INP") == 0)
+		return INP;
+	if(strcmp(token, "OUT") == 0)
+		return OUT;
+	if(strcmp(token, "BRZ") == 0)
+		return BRZ;
+	if(strcmp(token, "BRP") == 0)
+		return BRP;
+	if(strcmp(token, "BRA") == 0)
+		return BRA;
+	else
+		return NOT_AN_INSTRUCTION;
+}
+
+void free_2d(void** array_2d, size_t array_len)
+{
+	for(size_t i = 0; i < array_len; i++)
+	{
+		free(array_2d[i]);
+	}
+	free(array_2d);
+}
 
 void copy_char_array(char* source, char* dest, size_t length)
 {
@@ -85,26 +133,62 @@ char* remove_comments(char* char_stream, size_t char_stream_length)
 	return new_char_stream;
 }
 
+//char* remove_repeated_whitespace(char* char_stream)
+//{
+//	size_t whitespace_repeats = 0;
+//	size_t char_count = 0;
+//	for(size_t index = 0; char_stream[index] != '\0'; index++)
+//	{
+//		whitespace_repeats += (char_stream[index] == ' ' && char_stream[index + 1] == ' ' ? 1 : 0);
+//		char_count++;
+//	}
+//	size_t new_length = char_count - whitespace_repeats;
+//	char* new_char_stream = (char*)malloc(sizeof(char) * new_length);
+//	size_t offset = 0;
+//	for(size_t index = 0; char_stream[index] != '\0'; index++)
+//	{
+//		if(char_stream[index] == ' ' && char_stream[index + 1] == ' ')
+//			offset++;	
+//		else
+//			new_char_stream[index - offset] = char_stream[index];
+//	}
+//	return new_char_stream;
+//}
+
 char* remove_repeated_whitespace(char* char_stream)
 {
-	size_t whitespace_repeats = 0;
-	size_t char_count = 0;
-	for(size_t index = 0; char_stream[index] != '\0'; index++)
-	{
-		whitespace_repeats += (char_stream[index] == ' ' && char_stream[index + 1] == ' ' ? 1 : 0);
-		char_count++;
-	}
-	size_t new_length = char_count - whitespace_repeats;
-	char* new_char_stream = (char*)malloc(sizeof(char) * new_length);
-	size_t offset = 0;
-	for(size_t index = 0; char_stream[index] != '\0'; index++)
-	{
-		if(char_stream[index] == ' ' && char_stream[index + 1] == ' ')
-			offset++;	
-		else
-			new_char_stream[index - offset] = char_stream[index];
-	}
-	return new_char_stream;
+    if (!char_stream) return NULL;
+
+    size_t char_count = 0;
+    size_t index = 0;
+
+    // First pass: Count valid characters
+    while (char_stream[index] != '\0') {
+        if (!(char_stream[index] == ' ' && char_stream[index + 1] == ' ')) {
+            char_count++;
+        }
+        index++;
+    }
+
+    // Allocate memory for new string (+1 for null terminator)
+    char* new_char_stream = (char*)malloc(sizeof(char) * (char_count + 1));
+    if (!new_char_stream) return NULL; // Handle memory allocation failure
+
+    index = 0;
+    size_t new_index = 0;
+
+    // Second pass: Copy characters while removing extra spaces
+    while (char_stream[index] != '\0') {
+        if (!(char_stream[index] == ' ' && char_stream[index + 1] == ' ')) {
+            new_char_stream[new_index++] = char_stream[index];
+        }
+        index++;
+    }
+
+    // Null-terminate the new string
+    new_char_stream[new_index] = '\0';
+
+    return new_char_stream;
 }
 
 char* strip(char* non_stripped_stream)
@@ -194,19 +278,17 @@ int main(int argc, char* argv[])
 
 	char* char_stream = remove_comments(char_stream_with_comments, file_size);
 	free(char_stream_with_comments);
-
 	replace(char_stream, '\t', ' ');
 	replace(char_stream, '\n', ' ');
 	//Now make sure labels are seperated from the following Opcode i.e. OUT:HLT -> OUT: HLT.
 	char* new_char_stream = unpair_lables(char_stream);
 	free(char_stream);
-
+	//GOOD
 	char* token_char_stream_not_stripped = remove_repeated_whitespace(new_char_stream);
 	free(new_char_stream);
-	
+	//BAD
 	char* token_char_stream_stripped = strip(token_char_stream_not_stripped);
 	free(token_char_stream_not_stripped);
-	
 	char** tokens;
 	size_t* token_lengths;
        	size_t num_tokens = split_stream_by_char(token_char_stream_stripped, &tokens, &token_lengths, ' ');
@@ -309,18 +391,78 @@ int main(int argc, char* argv[])
 	free(tokens);
 	free(token_lengths);
 	//We have now split the file into instruction_tokens, variables and lables.
-	//Now for each occurance of lable, replace with its address.
+	//Set variable addresses.
+	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
+	{
+		variable_addresses[variable_index] = MEMORY_SIZE - variable_index - 1;	
+	}
 
 	byte* program = (byte*)malloc(sizeof(byte) * MEMORY_SIZE);
 	for(size_t token_index = 0; token_index < number_of_non_variable_or_lable_tokens; token_index++)
 	{
 		char* token = non_variable_or_lable_tokens[token_index];
+		byte opcode = decode_opcode(token);
 		//if token in pneumonics, convert.
+		if(opcode != NOT_AN_INSTRUCTION) {
+			program[token_index] = opcode;
+			continue; }
+
 		//else if token is lable replace with address byte
+		bool is_lable = false;
+		for(size_t lable_index = 0; lable_index < number_of_lables; lable_index++)
+		{
+			if(strcmp(lable_names[lable_index], token) == 0) {
+				is_lable = true;
+				program[token_index] = lable_addresses[lable_index];
+				break;
+			}
+		}
+		if(is_lable)
+			continue;
+		
 		//else if token is variable, replace with address byte
+		bool is_variable = false;
+		for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
+		{
+			if(strcmp(variable_names[variable_index], token) == 0) {
+				is_variable = true;
+				program[token_index] = variable_addresses[variable_index];
+				break;
+			}
+		}
+		if(is_variable)
+			continue;
+
 		//else if token is '0xAB' replace with 0xAB
-		//finally set variable address value to defaults.
+		if(token[0] == '0' && token[1] == 'x') {
+			program[token_index] = strtol(token, NULL, 16);
+			continue; }
+		//printf("\nERROR : %s", token);
+			
 	}
+	//finally set variable address value to defaults.
+	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
+	{
+		program[variable_addresses[variable_index]] = variable_values[variable_index];
+	}
+		
+	free_2d((void**)variable_names, number_of_variables);
+	free_2d((void**)lable_names, number_of_lables);
+	free_2d((void**)non_variable_or_lable_tokens, number_of_non_variable_or_lable_tokens);
+	
+	free(variable_name_lengths);
+	free(variable_values);
+	free(variable_addresses);
+	free(lable_name_lengths);
+	free(lable_addresses);
+	free(non_variable_or_lable_token_lengths);
+
+	//write code to file
+	FILE* p_file = fopen(argv[2], "wb");
+	fwrite(program, sizeof(byte), MEMORY_SIZE, p_file);
+	fclose(p_file);
+
+	free(program);
 
 	return 0;
 }

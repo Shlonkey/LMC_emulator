@@ -8,7 +8,7 @@ struct timespec ts;
 #define CLOCK_FREQUENCY 25
 #define CLOCK_CYCLE() (usleep(1000000.0 / CLOCK_FREQUENCY))
 
-#define MEMORY_SIZE 0xFF
+#define MEMORY_SIZE 0x100
 
 #define HLT 0x0
 #define LDA 0x1
@@ -32,24 +32,17 @@ struct CPU {
 	byte MEM[MEMORY_SIZE];	//Main Memory
 };
 
-void load_test_program(struct CPU* p_cpu)
+void load_rom(struct CPU* p_cpu, char* path)
 {
-	p_cpu->MEM[0x00] = INP;
-	p_cpu->MEM[0x01] = STA;
-	p_cpu->MEM[0x02] = 0x40;
-	p_cpu->MEM[0x03] = INP;
-	p_cpu->MEM[0x04] = ADD;
-	p_cpu->MEM[0x05] = 0x40;
-	p_cpu->MEM[0x06] = OUT;
-	p_cpu->MEM[0x07] = BRZ;
-	p_cpu->MEM[0x08] = 0x0E;
-	p_cpu->MEM[0x09] = SUB;
-	p_cpu->MEM[0x0A] = 0xF0;
-	p_cpu->MEM[0x0B] = OUT;
-	p_cpu->MEM[0x0C] = BRA; 
-	p_cpu->MEM[0x0D] = 0x07;
-	p_cpu->MEM[0x0E] = HLT;
-	p_cpu->MEM[0xF0] = 1;
+	FILE* p_file = fopen(path, "rb");
+	byte* program = (byte*)malloc(sizeof(byte) * MEMORY_SIZE);
+	fread(program, sizeof(byte), MEMORY_SIZE, p_file);
+       	fclose(p_file);	
+	
+	for(size_t i = 0; i < MEMORY_SIZE; i++)
+	{
+		p_cpu->MEM[i] = program[i];
+	}
 }
 
 void reset_cpu(struct CPU* p_cpu)
@@ -61,11 +54,6 @@ void reset_cpu(struct CPU* p_cpu)
 	p_cpu->MDR = 0x00;
 	p_cpu->IR = 0x00;
 	p_cpu->IOR = 0x00;
-
-	for(int i = 0; i < MEMORY_SIZE; i++)
-	{
-		p_cpu->MEM[i] = 0x00;
-	}
 }
 
 void MOV_PC_MAR(struct CPU* p_cpu)
@@ -154,7 +142,7 @@ int main(int argc, char* argv[])
 {
 	struct CPU cpu;
 	reset_cpu(&cpu);
-	load_test_program(&cpu);
+	load_rom(&cpu, argv[1]);
 	while(1)
 	{
 		//Fetch
