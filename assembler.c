@@ -133,28 +133,6 @@ char* remove_comments(char* char_stream, size_t char_stream_length)
 	return new_char_stream;
 }
 
-//char* remove_repeated_whitespace(char* char_stream)
-//{
-//	size_t whitespace_repeats = 0;
-//	size_t char_count = 0;
-//	for(size_t index = 0; char_stream[index] != '\0'; index++)
-//	{
-//		whitespace_repeats += (char_stream[index] == ' ' && char_stream[index + 1] == ' ' ? 1 : 0);
-//		char_count++;
-//	}
-//	size_t new_length = char_count - whitespace_repeats;
-//	char* new_char_stream = (char*)malloc(sizeof(char) * new_length);
-//	size_t offset = 0;
-//	for(size_t index = 0; char_stream[index] != '\0'; index++)
-//	{
-//		if(char_stream[index] == ' ' && char_stream[index + 1] == ' ')
-//			offset++;	
-//		else
-//			new_char_stream[index - offset] = char_stream[index];
-//	}
-//	return new_char_stream;
-//}
-
 char* remove_repeated_whitespace(char* char_stream)
 {
     if (!char_stream) return NULL;
