@@ -1,4 +1,4 @@
-all: enumator assembler compiler
+all: emulator assembler compiler
 
 emulator:
 	gcc emulator.c -o emulator

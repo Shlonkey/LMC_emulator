@@ -8,21 +8,7 @@
 #include<stdint.h>
 #include<string.h>
 
-#define MEMORY_SIZE 0x100
-
-#define HLT 0x00
-#define LDA 0x01
-#define STA 0x02
-#define ADD 0x03
-#define SUB 0x04
-#define INP 0x05
-#define OUT 0x06
-#define BRZ 0x07
-#define BRP 0x08
-#define BRA 0x09
-#define NOT_AN_INSTRUCTION 0xFF
-
-typedef uint8_t byte;
+#include"opcodes.h"
 
 byte decode_opcode(char* token)
 {
