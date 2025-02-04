@@ -24,3 +24,8 @@ Assuming you have a file A.asm (extensions are not relevant)
 # Example
 Using one of the example assembly files, lets run all the steps assuming a completely clean install.
 
+```bash
+make clean all
+./assembler examples/add.asm add.bin
+./emulator add.bin
+```
