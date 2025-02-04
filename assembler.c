@@ -352,6 +352,67 @@ void split_tokens_by_type(char** tokens, size_t* token_lengths, size_t num_token
 	}	
 }
 
+void set_variable_addresses(struct Variable* variables, size_t number_of_variables)//Could put variables directly after instructions, however this is nice for now.
+{
+	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
+	{
+		variables[variable_index].address = MEMORY_SIZE - variable_index - 1;	
+	}
+}
+
+void replace_lables_with_address(byte* program, struct Lable* lables, size_t number_of_lables, struct Token* instruction_tokens, size_t number_of_instruction_tokens)
+{
+	for(size_t token_index = 0; token_index < number_of_instruction_tokens; token_index++)
+	{
+		struct Token token = instruction_tokens[token_index];
+		for(size_t lable_index = 0; lable_index < number_of_lables; lable_index++)
+		{
+			struct Lable lable = lables[lable_index];
+			if(strcmp(lable.name, token.name) == 0) {
+				program[token_index] = lable.address;
+				break;
+			}
+		}
+	}
+}
+
+void replace_variables_with_address(byte* program, struct Variable* variables, size_t number_of_variables, struct Token* instruction_tokens, size_t number_of_instruction_tokens)
+{
+	for(size_t token_index = 0; token_index < number_of_instruction_tokens; token_index++)
+	{
+		struct Token token = instruction_tokens[token_index];
+		for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
+		{
+			struct Variable variable = variables[variable_index];
+			if(strcmp(variable.name, token.name) == 0) {
+				program[token_index] = variable.address;
+				break;
+			}
+		}
+	}
+}
+
+void replace_instruction_with_opcode(byte* program, struct Token* instruction_tokens, size_t number_of_instruction_tokens)
+{
+	for(size_t token_index = 0; token_index < number_of_instruction_tokens; token_index++)
+	{
+		struct Token instruction_token = instruction_tokens[token_index];
+		byte opcode = decode_opcode(instruction_token.name);
+		//if token in pneumonics, convert.
+		if(opcode != NOT_AN_INSTRUCTION) {
+			program[token_index] = opcode;
+		} else if(instruction_token.name[0] == '0' && instruction_token.name[1] == 'x') {
+			program[token_index] = strtol(instruction_token.name, NULL, 16); }
+	}
+}
+
+void translate_to_machine_code(byte* program, struct Token* instruction_tokens, size_t number_of_instruction_tokens, struct Lable* lables, size_t number_of_lables, struct Variable* variables, size_t number_of_variables)
+{
+	replace_lables_with_address(program, lables, number_of_lables, instruction_tokens, number_of_instruction_tokens);
+	replace_variables_with_address(program, variables, number_of_variables, instruction_tokens, number_of_instruction_tokens);
+	replace_instruction_with_opcode(program, instruction_tokens, number_of_instruction_tokens);
+}
+
 int main(int argc, char* argv[])
 {
 	struct stat sb;
@@ -407,57 +468,11 @@ int main(int argc, char* argv[])
 	free(token_lengths);
 	//We have now split the file into instruction_tokens, variables and lables.
 	//Set variable addresses.
-	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
-	{
-		variables[variable_index].address = MEMORY_SIZE - variable_index - 1;	
-	}
+	set_variable_addresses(variables, number_of_variables);	
 
 	byte* program = (byte*)malloc(sizeof(byte) * MEMORY_SIZE);
-	for(size_t token_index = 0; token_index < number_of_instruction_tokens; token_index++)
-	{
-		struct Token instruction_token = instruction_tokens[token_index];
-		char* token = instruction_token.name;
-		byte opcode = decode_opcode(token);
-		//if token in pneumonics, convert.
-		if(opcode != NOT_AN_INSTRUCTION) {
-			program[token_index] = opcode;
-			continue; }
-
-		//else if token is lable replace with address byte
-		bool is_lable = false;
-		for(size_t lable_index = 0; lable_index < number_of_lables; lable_index++)
-		{
-			struct Lable lable = lables[lable_index];
-			if(strcmp(lable.name, token) == 0) {
-				is_lable = true;
-				program[token_index] = lable.address;
-				break;
-			}
-		}
-		if(is_lable)
-			continue;
-		
-		//else if token is variable, replace with address byte
-		bool is_variable = false;
-		for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
-		{
-			struct Variable variable = variables[variable_index];
-			if(strcmp(variable.name, token) == 0) {
-				is_variable = true;
-				program[token_index] = variable.address;
-				break;
-			}
-		}
-		if(is_variable)
-			continue;
-
-		//else if token is '0xAB' replace with 0xAB
-		if(token[0] == '0' && token[1] == 'x') {
-			program[token_index] = strtol(token, NULL, 16);
-			continue; }
-		//printf("\nERROR : %s", token);
-			
-	}
+	
+	translate_to_machine_code(program, instruction_tokens, number_of_instruction_tokens, lables, number_of_lables, variables, number_of_variables);
 	
 	//finally set variable address value to defaults.
 	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
