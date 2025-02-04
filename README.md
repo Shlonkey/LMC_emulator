@@ -21,3 +21,6 @@ Assuming you have a file A.asm (extensions are not relevant)
 ./emulator A.bin
 ```
 
+# Example
+Using one of the example assembly files, lets run all the steps assuming a completely clean install.
+

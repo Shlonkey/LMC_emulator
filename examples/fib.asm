@@ -1,0 +1,38 @@
+DAT LAST 0x01
+DAT CURRENT 0x01
+DAT TEMP
+DAT COUNTER
+DAT ONE 0x01
+
+; If counter is too large, calculated fib numbers will overflow.
+INP
+BRZ END_WHILE_LOOP_1
+SUB ONE
+STA COUNTER
+LDA LAST
+OUT
+LDA COUNTER
+
+WHILE_LOOP_1:
+	BRZ END_WHILE_LOOP_1
+	; temp = last + current
+	LDA CURRENT
+	OUT
+
+	LDA LAST
+	ADD CURRENT
+	STA TEMP
+	; last = current
+	LDA CURRENT
+	STA LAST
+	; current = temp
+	LDA TEMP
+	STA CURRENT
+	; counter -= 1
+	LDA COUNTER
+	SUB ONE
+	STA COUNTER
+	BRA WHILE_LOOP_1
+
+END_WHILE_LOOP_1:
+	HLT

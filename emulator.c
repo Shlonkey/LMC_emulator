@@ -111,7 +111,7 @@ void MOV_MAR_PC(struct CPU* p_cpu)
 
 void OUT_IOR(struct CPU* p_cpu)
 {
-	printf("OUT: %02X\n", p_cpu->IOR);	
+	printf("OUT: %i\n", p_cpu->IOR);	
 }
 
 int main(int argc, char* argv[])
@@ -119,6 +119,9 @@ int main(int argc, char* argv[])
 	struct CPU cpu;
 	reset_cpu(&cpu);
 	load_rom(&cpu, argv[1]);
+
+	size_t total_instructions_run = 0;
+
 	while(1)
 	{
 		//Fetch
@@ -126,8 +129,8 @@ int main(int argc, char* argv[])
 		INC_PC(&cpu);
 		READ(&cpu);
 		MOV_MDR_IR(&cpu);
-
 		//Decode & Execute
+		total_instructions_run++;
 		switch(cpu.IR)
 		{
 			case HLT:
@@ -204,5 +207,6 @@ int main(int argc, char* argv[])
 		}
 	}
 	end_execution:
+	printf("\n\nProgram Terminated in %i Cycles\n\n", total_instructions_run);
 	return 0;
 }
