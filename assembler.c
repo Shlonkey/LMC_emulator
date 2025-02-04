@@ -406,11 +406,20 @@ void replace_instruction_with_opcode(byte* program, struct Token* instruction_to
 	}
 }
 
-void translate_to_machine_code(byte* program, struct Token* instruction_tokens, size_t number_of_instruction_tokens, struct Lable* lables, size_t number_of_lables, struct Variable* variables, size_t number_of_variables)
+void translate_to_machine_code(byte* program, struct Token* instruction_tokens, struct Lable* lables, struct Variable* variables, struct Token_Counts token_counts)
 {
-	replace_lables_with_address(program, lables, number_of_lables, instruction_tokens, number_of_instruction_tokens);
-	replace_variables_with_address(program, variables, number_of_variables, instruction_tokens, number_of_instruction_tokens);
-	replace_instruction_with_opcode(program, instruction_tokens, number_of_instruction_tokens);
+	replace_lables_with_address(program, lables, token_counts.number_of_lables, instruction_tokens, token_counts.number_of_instruction_tokens);
+	replace_variables_with_address(program, variables, token_counts.number_of_variables, instruction_tokens, token_counts.number_of_instruction_tokens);
+	replace_instruction_with_opcode(program, instruction_tokens, token_counts.number_of_instruction_tokens);
+}
+
+void load_initial_variable_values(byte* program, struct Variable* variables, size_t number_of_variables)
+{
+	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
+	{
+		struct Variable variable = variables[variable_index];
+		program[variable.address] = variable.value;
+	}
 }
 
 int main(int argc, char* argv[])
@@ -451,13 +460,9 @@ int main(int argc, char* argv[])
 	struct Token_Counts token_counts;
 	calculate_token_type_counts(tokens, token_lengths, num_tokens, &token_counts);
 
-	size_t number_of_variables = token_counts.number_of_variables;
-	size_t number_of_lables = token_counts.number_of_lables;
-	size_t number_of_instruction_tokens = token_counts.number_of_instruction_tokens;
-
-	struct Variable* variables = (struct Variable*)malloc(sizeof(struct Variable) * number_of_variables);
-	struct Lable* lables = (struct Lable*)malloc(sizeof(struct Lable) * number_of_lables);
-	struct Token* instruction_tokens = (struct Token*)malloc(sizeof(struct Token) * number_of_instruction_tokens);
+	struct Variable* variables = (struct Variable*)malloc(sizeof(struct Variable) * token_counts.number_of_variables);
+	struct Lable* lables = (struct Lable*)malloc(sizeof(struct Lable) * token_counts.number_of_lables);
+	struct Token* instruction_tokens = (struct Token*)malloc(sizeof(struct Token) * token_counts.number_of_instruction_tokens);
 
 	//Now we have allocated memory for all the token data, split the tokens into thier representative info.
 	//I.e. extract data from lables and dat tokens and determine default values.
@@ -468,20 +473,15 @@ int main(int argc, char* argv[])
 	free(token_lengths);
 	//We have now split the file into instruction_tokens, variables and lables.
 	//Set variable addresses.
-	set_variable_addresses(variables, number_of_variables);	
+	set_variable_addresses(variables, token_counts.number_of_variables);	
 
 	byte* program = (byte*)malloc(sizeof(byte) * MEMORY_SIZE);
 	
-	translate_to_machine_code(program, instruction_tokens, number_of_instruction_tokens, lables, number_of_lables, variables, number_of_variables);
+	translate_to_machine_code(program, instruction_tokens, lables, variables, token_counts);
 	
 	//finally set variable address value to defaults.
-	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
-	{
-		struct Variable variable = variables[variable_index];
-		program[variable.address] = variable.value;
-	}
-		
-
+	load_initial_variable_values(program, variables, token_counts.number_of_variables);
+	
 	//Make sure to FREE all struct members!!!
 
 	//write code to file
