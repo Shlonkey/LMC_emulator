@@ -66,15 +66,6 @@ byte decode_opcode(char* token)
 		return NOT_AN_INSTRUCTION;
 }
 
-void free_2d(void** array_2d, size_t array_len)
-{
-	for(size_t i = 0; i < array_len; i++)
-	{
-		free(array_2d[i]);
-	}
-	free(array_2d);
-}
-
 void copy_char_array(char* source, char* dest, size_t length)
 {
 	for(size_t i = 0; i < length; i++)
@@ -156,7 +147,6 @@ char* remove_repeated_whitespace(char* char_stream)
     size_t char_count = 0;
     size_t index = 0;
 
-    // First pass: Count valid characters
     while (char_stream[index] != '\0') {
         if (!(char_stream[index] == ' ' && char_stream[index + 1] == ' ')) {
             char_count++;
@@ -164,14 +154,12 @@ char* remove_repeated_whitespace(char* char_stream)
         index++;
     }
 
-    // Allocate memory for new string (+1 for null terminator)
     char* new_char_stream = (char*)malloc(sizeof(char) * (char_count + 1));
     if (!new_char_stream) return NULL; // Handle memory allocation failure
 
     index = 0;
     size_t new_index = 0;
 
-    // Second pass: Copy characters while removing extra spaces
     while (char_stream[index] != '\0') {
         if (!(char_stream[index] == ' ' && char_stream[index + 1] == ' ')) {
             new_char_stream[new_index++] = char_stream[index];
@@ -179,7 +167,6 @@ char* remove_repeated_whitespace(char* char_stream)
         index++;
     }
 
-    // Null-terminate the new string
     new_char_stream[new_index] = '\0';
 
     return new_char_stream;
@@ -308,10 +295,9 @@ void split_tokens_by_type(char** tokens, size_t* token_lengths, size_t num_token
 			struct Lable* p_lable = lables + lable_index;
 			p_lable->length = token_length - 1;
 			p_lable->name = (char*)malloc(sizeof(char) * token_length - 1);
-			for(size_t i = 0; i < token_length - 1; i++)
-			{
-				p_lable->name[i] = token[i];
-			}
+		
+			copy_char_array(token, p_lable->name, token_length - 1);
+			
 			p_lable->address = location_counter;
 			lable_index++;
 			continue; 
@@ -322,10 +308,9 @@ void split_tokens_by_type(char** tokens, size_t* token_lengths, size_t num_token
 			token_length = token_lengths[token_index];
 			p_variable->length = token_length;
 			p_variable->name = (char*)malloc(sizeof(char) * token_length);
-			for(size_t i = 0; i < token_length; i++)
-			{
-				p_variable->name[i] = variable_name[i];
-			}
+			
+			copy_char_array(variable_name, p_variable->name, token_length);
+			
 			if(token_index < num_tokens - 1)
 			{
 				char* default_value = tokens[token_index + 1];
@@ -342,10 +327,9 @@ void split_tokens_by_type(char** tokens, size_t* token_lengths, size_t num_token
 			struct Token* p_instruction_token = instruction_tokens + instruction_index;
 			p_instruction_token->length = token_length;
 			p_instruction_token->name = (char*)malloc(sizeof(char) * token_length);
-			for(size_t i = 0; i < token_length; i++)
-			{
-				p_instruction_token->name[i] = token[i];
-			}
+			
+			copy_char_array(token, p_instruction_token->name, token_length);
+			
 			instruction_index++;
 			location_counter++; 
 		}
@@ -422,6 +406,33 @@ void load_initial_variable_values(byte* program, struct Variable* variables, siz
 	}
 }
 
+void free_variables(struct Variable* variables, size_t count)
+{
+	for(size_t index = 0; index < count; index++)
+	{
+		free(variables[index].name);	
+	}
+	free(variables);
+}
+
+void free_lables(struct Lable* lables, size_t count)
+{
+	for(size_t index = 0; index < count; index++)
+	{
+		free(lables[index].name);
+	}
+	free(lables);
+}
+
+void free_tokens(struct Token* tokens, size_t count)
+{
+	for(size_t index = 0; index < count; index++)
+	{
+		free(tokens[index].name);
+	}
+	free(tokens);
+}
+
 int main(int argc, char* argv[])
 {
 	struct stat sb;
@@ -434,20 +445,18 @@ int main(int argc, char* argv[])
 	copy_char_array(address, char_stream_with_comments, file_size);
 	munmap(address, file_size);
 	close(fd);
-	//We have now read the file in to a char* we want to remove comments
-	//From each ';' to the next \n replace chars with ' '. also replace any '\t' with ' '
 
 	char* char_stream = remove_comments(char_stream_with_comments, file_size);
 	free(char_stream_with_comments);
 	replace(char_stream, '\t', ' ');
 	replace(char_stream, '\n', ' ');
-	//Now make sure labels are seperated from the following Opcode i.e. OUT:HLT -> OUT: HLT.
+	
 	char* new_char_stream = unpair_lables(char_stream);
 	free(char_stream);
-	//GOOD
+	
 	char* token_char_stream_not_stripped = remove_repeated_whitespace(new_char_stream);
 	free(new_char_stream);
-	//BAD
+	
 	char* token_char_stream_stripped = strip(token_char_stream_not_stripped);
 	free(token_char_stream_not_stripped);
 	char** tokens;
@@ -455,7 +464,6 @@ int main(int argc, char* argv[])
        	size_t num_tokens = split_stream_by_char(token_char_stream_stripped, &tokens, &token_lengths, ' ');
 
 	free(token_char_stream_stripped);
-	//Now all tokens (opcodes, constants and labels are seperated by into tokens) we need to get variable names and defult values, and lable jump addresses as well as converting PNEUMONICS to machinecode. and finally assiging variable addresses.
 
 	struct Token_Counts token_counts;
 	calculate_token_type_counts(tokens, token_lengths, num_tokens, &token_counts);
@@ -464,27 +472,23 @@ int main(int argc, char* argv[])
 	struct Lable* lables = (struct Lable*)malloc(sizeof(struct Lable) * token_counts.number_of_lables);
 	struct Token* instruction_tokens = (struct Token*)malloc(sizeof(struct Token) * token_counts.number_of_instruction_tokens);
 
-	//Now we have allocated memory for all the token data, split the tokens into thier representative info.
-	//I.e. extract data from lables and dat tokens and determine default values.
-
 	split_tokens_by_type(tokens, token_lengths, num_tokens, variables, lables, instruction_tokens);
 	
 	free(tokens);
 	free(token_lengths);
-	//We have now split the file into instruction_tokens, variables and lables.
-	//Set variable addresses.
+	
 	set_variable_addresses(variables, token_counts.number_of_variables);	
 
 	byte* program = (byte*)malloc(sizeof(byte) * MEMORY_SIZE);
 	
 	translate_to_machine_code(program, instruction_tokens, lables, variables, token_counts);
 	
-	//finally set variable address value to defaults.
 	load_initial_variable_values(program, variables, token_counts.number_of_variables);
-	
-	//Make sure to FREE all struct members!!!
 
-	//write code to file
+	free_variables(variables, token_counts.number_of_variables);
+	free_lables(lables, token_counts.number_of_lables);
+	free_tokens(instruction_tokens, token_counts.number_of_instruction_tokens);
+
 	FILE* p_file = fopen(argv[2], "wb");
 	fwrite(program, sizeof(byte), MEMORY_SIZE, p_file);
 	fclose(p_file);
