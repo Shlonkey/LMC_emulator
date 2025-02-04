@@ -176,7 +176,7 @@ int main(int argc, char* argv[])
 				scanf("%s", input);
 				printf("\n");
 				
-				byte value = (byte)strtol(input, NULL, 16);
+				byte value = (byte)strtol(input, NULL, 0);//Stack smashing...
 				WRITE_IOR(&cpu, value);
 				MOV_IOR_A(&cpu);
 				break;
