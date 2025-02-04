@@ -10,6 +10,29 @@
 
 #include"opcodes.h"
 
+struct Variable
+{
+	char* name;
+	size_t length;
+
+	byte value;
+	byte address;
+};
+
+struct Lable
+{
+	char* name;
+	size_t length;
+
+	byte address;
+};
+
+struct Token
+{
+	char* name;
+	size_t length;
+};
+
 struct Token_Counts
 {
 	size_t number_of_variables;
@@ -270,6 +293,65 @@ void calculate_token_type_counts(char** tokens, size_t* token_lengths, size_t nu
 	return;
 }
 
+void split_tokens_by_type(char** tokens, size_t* token_lengths, size_t num_tokens, struct Variable* variables, struct Lable* lables, struct Token* instruction_tokens)
+{
+	byte location_counter = 0;
+	size_t variable_index = 0;
+	size_t lable_index = 0;
+	size_t instruction_index = 0;
+
+	for(size_t token_index = 0; token_index < num_tokens; token_index++)
+	{
+		char* token = tokens[token_index];
+		size_t token_length = token_lengths[token_index];
+		if(token[token_length - 1] == ':') {//Lable line
+			struct Lable* p_lable = lables + lable_index;
+			p_lable->length = token_length - 1;
+			p_lable->name = (char*)malloc(sizeof(char) * token_length - 1);
+			for(size_t i = 0; i < token_length - 1; i++)
+			{
+				p_lable->name[i] = token[i];
+			}
+			p_lable->address = location_counter;
+			lable_index++;
+			continue; 
+		} if(token_length == 3 && token[0] == 'D' && token[1] == 'A' && token[2] == 'T') {
+			token_index++;
+			struct Variable* p_variable = variables + variable_index;
+			char* variable_name = tokens[token_index];
+			token_length = token_lengths[token_index];
+			p_variable->length = token_length;
+			p_variable->name = (char*)malloc(sizeof(char) * token_length);
+			for(size_t i = 0; i < token_length; i++)
+			{
+				p_variable->name[i] = variable_name[i];
+			}
+			if(token_index < num_tokens - 1)
+			{
+				char* default_value = tokens[token_index + 1];
+				if(default_value[0] == '0' && default_value[1] == 'x')
+				{
+					byte value = strtol(default_value, NULL, 16);
+					p_variable->value = value;
+					token_index++;
+				}
+			}
+			variable_index++;
+			continue;
+		} else {
+			struct Token* p_instruction_token = instruction_tokens + instruction_index;
+			p_instruction_token->length = token_length;
+			p_instruction_token->name = (char*)malloc(sizeof(char) * token_length);
+			for(size_t i = 0; i < token_length; i++)
+			{
+				p_instruction_token->name[i] = token[i];
+			}
+			instruction_index++;
+			location_counter++; 
+		}
+	}	
+}
+
 int main(int argc, char* argv[])
 {
 	struct stat sb;
@@ -312,83 +394,29 @@ int main(int argc, char* argv[])
 	size_t number_of_lables = token_counts.number_of_lables;
 	size_t number_of_instruction_tokens = token_counts.number_of_instruction_tokens;
 
-	size_t* variable_name_lengths = (size_t*)malloc(sizeof(size_t) * number_of_variables); 
-	char** variable_names = (char**)malloc(sizeof(char*) * number_of_variables); 
-	byte* variable_values = (byte*)malloc(sizeof(byte) * number_of_variables);
-	byte* variable_addresses = (byte*)malloc(sizeof(byte) * number_of_variables);
+	struct Variable* variables = (struct Variable*)malloc(sizeof(struct Variable) * number_of_variables);
+	struct Lable* lables = (struct Lable*)malloc(sizeof(struct Lable) * number_of_lables);
+	struct Token* instruction_tokens = (struct Token*)malloc(sizeof(struct Token) * number_of_instruction_tokens);
 
-	size_t* lable_name_lengths = (size_t*)malloc(sizeof(size_t) * number_of_lables); 
-	char** lable_names = (char**)malloc(sizeof(char*) * number_of_lables);
-	byte* lable_addresses = (byte*)malloc(sizeof(byte) * number_of_lables);
-
-	size_t* instruction_token_lengths = (size_t*)malloc(sizeof(size_t) * number_of_instruction_tokens); 
-	char** instruction_tokens = (char**)malloc(sizeof(char*) * number_of_instruction_tokens);
 	//Now we have allocated memory for all the token data, split the tokens into thier representative info.
 	//I.e. extract data from lables and dat tokens and determine default values.
 
-	byte location_counter = 0;
-	size_t variable_index = 0;
-	size_t lable_index = 0;
-	size_t instruction_index = 0;
-	for(size_t token_index = 0; token_index < num_tokens; token_index++)
-	{
-		char* token = tokens[token_index];
-		size_t token_length = token_lengths[token_index];
-		if(token[token_length - 1] == ':') {//Lable line
-			lable_name_lengths[lable_index] = token_length - 1;
-			lable_names[lable_index] = (char*)malloc(sizeof(char) * token_length - 1);
-			for(size_t i = 0; i < token_length - 1; i++)
-			{
-				lable_names[lable_index][i] = token[i];
-			}
-			lable_addresses[lable_index] = location_counter;
-			lable_index++;
-			continue; 
-		} if(token_length == 3 && token[0] == 'D' && token[1] == 'A' && token[2] == 'T') {
-			token_index++;
-			char* variable_name = tokens[token_index];
-			token_length = token_lengths[token_index];
-			variable_name_lengths[variable_index] = token_length;
-			variable_names[variable_index] = (char*)malloc(sizeof(char) * token_length);
-			for(size_t i = 0; i < token_length; i++)
-			{
-				variable_names[variable_index][i] = variable_name[i];
-			}
-			if(token_index < num_tokens - 1)
-			{
-				char* default_value = tokens[token_index + 1];
-				if(default_value[0] == '0' && default_value[1] == 'x')
-				{
-					byte value = strtol(default_value, NULL, 16);
-					variable_values[variable_index] = value;
-					token_index++;
-				}
-			}
-			variable_index++;
-			continue;
-		}
-		instruction_token_lengths[instruction_index] = token_length;
-		instruction_tokens[instruction_index] = (char*)malloc(sizeof(char) * token_length);
-		for(size_t i = 0; i < token_length; i++)
-		{
-			instruction_tokens[instruction_index][i] = token[i];
-		}
-		instruction_index++;
-		location_counter++;
-	}	
+	split_tokens_by_type(tokens, token_lengths, num_tokens, variables, lables, instruction_tokens);
+	
 	free(tokens);
 	free(token_lengths);
 	//We have now split the file into instruction_tokens, variables and lables.
 	//Set variable addresses.
 	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
 	{
-		variable_addresses[variable_index] = MEMORY_SIZE - variable_index - 1;	
+		variables[variable_index].value = MEMORY_SIZE - variable_index - 1;	
 	}
 
 	byte* program = (byte*)malloc(sizeof(byte) * MEMORY_SIZE);
 	for(size_t token_index = 0; token_index < number_of_instruction_tokens; token_index++)
 	{
-		char* token = instruction_tokens[token_index];
+		struct Token instruction_token = instruction_tokens[token_index];
+		char* token = instruction_token.name;
 		byte opcode = decode_opcode(token);
 		//if token in pneumonics, convert.
 		if(opcode != NOT_AN_INSTRUCTION) {
@@ -399,9 +427,10 @@ int main(int argc, char* argv[])
 		bool is_lable = false;
 		for(size_t lable_index = 0; lable_index < number_of_lables; lable_index++)
 		{
-			if(strcmp(lable_names[lable_index], token) == 0) {
+			struct Lable lable = lables[lable_index];
+			if(strcmp(lable.name, token) == 0) {
 				is_lable = true;
-				program[token_index] = lable_addresses[lable_index];
+				program[token_index] = lable.address;
 				break;
 			}
 		}
@@ -412,9 +441,10 @@ int main(int argc, char* argv[])
 		bool is_variable = false;
 		for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
 		{
-			if(strcmp(variable_names[variable_index], token) == 0) {
+			struct Variable variable = variables[variable_index];
+			if(strcmp(variable.name, token) == 0) {
 				is_variable = true;
-				program[token_index] = variable_addresses[variable_index];
+				program[token_index] = variable.address;
 				break;
 			}
 		}
@@ -428,22 +458,16 @@ int main(int argc, char* argv[])
 		//printf("\nERROR : %s", token);
 			
 	}
+	
 	//finally set variable address value to defaults.
 	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
 	{
-		program[variable_addresses[variable_index]] = variable_values[variable_index];
+		struct Variable variable = variables[variable_index];
+		program[variable.address] = variable.value;
 	}
 		
-	free_2d((void**)variable_names, number_of_variables);
-	free_2d((void**)lable_names, number_of_lables);
-	free_2d((void**)instruction_tokens, number_of_instruction_tokens);
-	
-	free(variable_name_lengths);
-	free(variable_values);
-	free(variable_addresses);
-	free(lable_name_lengths);
-	free(lable_addresses);
-	free(instruction_token_lengths);
+
+	//Make sure to FREE all struct members!!!
 
 	//write code to file
 	FILE* p_file = fopen(argv[2], "wb");
@@ -451,6 +475,6 @@ int main(int argc, char* argv[])
 	fclose(p_file);
 
 	free(program);
-
+	
 	return 0;
 }
