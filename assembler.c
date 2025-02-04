@@ -409,7 +409,7 @@ int main(int argc, char* argv[])
 	//Set variable addresses.
 	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
 	{
-		variables[variable_index].value = MEMORY_SIZE - variable_index - 1;	
+		variables[variable_index].address = MEMORY_SIZE - variable_index - 1;	
 	}
 
 	byte* program = (byte*)malloc(sizeof(byte) * MEMORY_SIZE);
