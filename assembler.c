@@ -457,12 +457,16 @@ int main(int argc, char* argv[])
 	char* token_char_stream_not_stripped = remove_repeated_whitespace(new_char_stream);
 	free(new_char_stream);
 	
+
 	char* token_char_stream_stripped = strip(token_char_stream_not_stripped);
 	free(token_char_stream_not_stripped);
+
+	//Figure out how to turn this into the token structs 
+	//----------------------------
 	char** tokens;
 	size_t* token_lengths;
        	size_t num_tokens = split_stream_by_char(token_char_stream_stripped, &tokens, &token_lengths, ' ');
-
+	//----------------------------
 	free(token_char_stream_stripped);
 
 	struct Token_Counts token_counts;
