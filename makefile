@@ -7,5 +7,5 @@ assembler:
 	gcc assembler.c -o assembler
 
 clean:
-	rm -f emulator assembler compiler
+	rm -f emulator assembler compiler *.bin
 

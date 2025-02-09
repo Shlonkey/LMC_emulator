@@ -200,7 +200,7 @@ char* strip(char* non_stripped_stream)
 	return stripped_stream;
 }
 
-size_t split_stream_by_char(char* stream, char*** out_tokens, size_t** out_token_lengths, char c)
+size_t split_stream_by_char(char* stream, struct Token** p_tokens, char c)
 {
 	size_t token_count = 1;	
 	for(size_t index = 0; stream[index] != '\0'; index++)
@@ -208,8 +208,7 @@ size_t split_stream_by_char(char* stream, char*** out_tokens, size_t** out_token
 		token_count += (stream[index] == ' ' ? 1 : 0);
 	}
 
-	char** local_out_tokens = (char**)malloc(sizeof(char*) * token_count);
-	size_t* split_lengths = malloc(sizeof(size_t) * token_count);
+	struct Token* local_out_tokens = (struct Token*)malloc(sizeof(struct Token) * token_count);
 
 	for(size_t index = 0, token_index = 0; stream[index] != '\0'; index++)
 	{
@@ -217,32 +216,31 @@ size_t split_stream_by_char(char* stream, char*** out_tokens, size_t** out_token
 		if(current_char == ' ') {
 			token_index++;
 		} else {
-			split_lengths[token_index]++;
+			local_out_tokens[token_index].length++;
 		}
 	}
 	
-	*out_token_lengths = split_lengths;
-
 	for(size_t index = 0; index < token_count; index++)
 	{
-		local_out_tokens[index] = (char*)malloc(sizeof(char) * split_lengths[index]);
+		local_out_tokens[index].name = (char*)malloc(sizeof(char) * local_out_tokens[index].length);
 	}
 	
 	size_t token_offset = 0;
 	for(size_t token_index = 0; token_index < token_count; token_index++)
 	{
-		for(size_t within_token_char_index = 0; within_token_char_index < split_lengths[token_index]; within_token_char_index++)
+		struct Token* p_token = local_out_tokens + token_index;
+		for(size_t within_token_char_index = 0; within_token_char_index < p_token->length; within_token_char_index++)
 		{
-			local_out_tokens[token_index][within_token_char_index] = stream[token_offset + within_token_char_index];
+			p_token->name[within_token_char_index] = stream[token_offset + within_token_char_index];
 		}
-		token_offset += (split_lengths[token_index] + 1);
+		token_offset += (p_token->length + 1);
 	}
 
-	*out_tokens = local_out_tokens;
+	*p_tokens = local_out_tokens;
 	return token_count;
 }
 
-void calculate_token_type_counts(char** tokens, size_t* token_lengths, size_t num_tokens, struct Token_Counts* p_token_counts)
+void calculate_token_type_counts(struct Token* tokens, size_t num_tokens, struct Token_Counts* p_token_counts)
 {
 	size_t number_of_variables = 0;
 	size_t number_of_lables = 0;
@@ -250,20 +248,20 @@ void calculate_token_type_counts(char** tokens, size_t* token_lengths, size_t nu
 
 	for(size_t token_index = 0; token_index < num_tokens; token_index++)
 	{
-		char* token = tokens[token_index];
-		if(token[token_lengths[token_index] - 1] == ':')
+		struct Token token = tokens[token_index];
+		if(token.name[token.length - 1] == ':')
 		{
 			number_of_lables++;
 			continue; }
-		else if(token_lengths[token_index] != 3) {
+		else if(token.length != 3) {
 			continue; }
-		else if(token[0] == 'D' && token[1] == 'A' && token[2] == 'T'){
+		else if(strcmp(token.name, "DAT") == 0){
 			number_of_variables++;
 			number_of_tokens_corresponding_to_variables += 2;
 			token_index++;
 			if(token_index < num_tokens - 1)
 			{
-				if(tokens[token_index + 1][0] == '0' && tokens[token_index + 1][1] == 'x')
+				if(tokens[token_index + 1].name[0] == '0' && tokens[token_index + 1].name[1] == 'x')
 				{
 					number_of_tokens_corresponding_to_variables++;
 					token_index++;
@@ -280,7 +278,7 @@ void calculate_token_type_counts(char** tokens, size_t* token_lengths, size_t nu
 	return;
 }
 
-void split_tokens_by_type(char** tokens, size_t* token_lengths, size_t num_tokens, struct Variable* variables, struct Lable* lables, struct Token* instruction_tokens)
+void split_tokens_by_type(struct Token* tokens, size_t num_tokens, struct Variable* variables, struct Lable* lables, struct Token* instruction_tokens)
 {
 	byte location_counter = 0;
 	size_t variable_index = 0;
@@ -289,23 +287,23 @@ void split_tokens_by_type(char** tokens, size_t* token_lengths, size_t num_token
 
 	for(size_t token_index = 0; token_index < num_tokens; token_index++)
 	{
-		char* token = tokens[token_index];
-		size_t token_length = token_lengths[token_index];
-		if(token[token_length - 1] == ':') {//Lable line
+		struct Token token = tokens[token_index];
+		size_t token_length = token.length;
+		if(token.name[token_length - 1] == ':') {//Lable line
 			struct Lable* p_lable = lables + lable_index;
 			p_lable->length = token_length - 1;
 			p_lable->name = (char*)malloc(sizeof(char) * token_length - 1);
 		
-			copy_char_array(token, p_lable->name, token_length - 1);
+			copy_char_array(token.name, p_lable->name, token_length - 1);
 			
 			p_lable->address = location_counter;
 			lable_index++;
 			continue; 
-		} if(token_length == 3 && token[0] == 'D' && token[1] == 'A' && token[2] == 'T') {
+		} if(token_length == 3 && (strcmp(token.name, "DAT") == 0)) {
 			token_index++;
 			struct Variable* p_variable = variables + variable_index;
-			char* variable_name = tokens[token_index];
-			token_length = token_lengths[token_index];
+			char* variable_name = token.name;
+			token_length = token.length;
 			p_variable->length = token_length;
 			p_variable->name = (char*)malloc(sizeof(char) * token_length);
 			
@@ -313,7 +311,7 @@ void split_tokens_by_type(char** tokens, size_t* token_lengths, size_t num_token
 			
 			if(token_index < num_tokens - 1)
 			{
-				char* default_value = tokens[token_index + 1];
+				char* default_value = tokens[token_index + 1].name;
 				if(default_value[0] == '0' && default_value[1] == 'x')
 				{
 					byte value = strtol(default_value, NULL, 16);
@@ -328,7 +326,7 @@ void split_tokens_by_type(char** tokens, size_t* token_lengths, size_t num_token
 			p_instruction_token->length = token_length;
 			p_instruction_token->name = (char*)malloc(sizeof(char) * token_length);
 			
-			copy_char_array(token, p_instruction_token->name, token_length);
+			copy_char_array(token.name, p_instruction_token->name, token_length);
 			
 			instruction_index++;
 			location_counter++; 
@@ -463,23 +461,22 @@ int main(int argc, char* argv[])
 
 	//Figure out how to turn this into the token structs 
 	//----------------------------
-	char** tokens;
-	size_t* token_lengths;
-       	size_t num_tokens = split_stream_by_char(token_char_stream_stripped, &tokens, &token_lengths, ' ');
+	struct Token* tokens;
+	size_t num_tokens = split_stream_by_char(token_char_stream_stripped, &tokens, ' ');
 	//----------------------------
+	
 	free(token_char_stream_stripped);
 
 	struct Token_Counts token_counts;
-	calculate_token_type_counts(tokens, token_lengths, num_tokens, &token_counts);
+	calculate_token_type_counts(tokens, num_tokens, &token_counts);
 
 	struct Variable* variables = (struct Variable*)malloc(sizeof(struct Variable) * token_counts.number_of_variables);
 	struct Lable* lables = (struct Lable*)malloc(sizeof(struct Lable) * token_counts.number_of_lables);
 	struct Token* instruction_tokens = (struct Token*)malloc(sizeof(struct Token) * token_counts.number_of_instruction_tokens);
 
-	split_tokens_by_type(tokens, token_lengths, num_tokens, variables, lables, instruction_tokens);
+	split_tokens_by_type(tokens, num_tokens, variables, lables, instruction_tokens);
 	
 	free(tokens);
-	free(token_lengths);
 	
 	set_variable_addresses(variables, token_counts.number_of_variables);	
 
