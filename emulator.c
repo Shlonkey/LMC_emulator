@@ -2,11 +2,12 @@
 #include<stdint.h>
 #include<stdlib.h>
 #include<unistd.h>
+#include<string.h>
+#include<time.h>
 
 #include"opcodes.h"
 
-#define CLOCK_FREQUENCY 25
-#define CLOCK_CYCLE() (usleep(1000000.0 / CLOCK_FREQUENCY))
+#define CLOCK_CYCLE() (sleep(0))
 
 void load_rom(struct CPU* p_cpu, char* path)
 {
@@ -15,10 +16,7 @@ void load_rom(struct CPU* p_cpu, char* path)
 	fread(program, sizeof(byte), MEMORY_SIZE, p_file);
        	fclose(p_file);	
 	
-	for(size_t i = 0; i < MEMORY_SIZE; i++)
-	{
-		p_cpu->MEM[i] = program[i];
-	}
+	memcpy(p_cpu->MEM, program, MEMORY_SIZE);
 }
 
 void reset_cpu(struct CPU* p_cpu)
@@ -116,20 +114,22 @@ void OUT_IOR(struct CPU* p_cpu)
 
 int main(int argc, char* argv[])
 {
+	unsigned int total_instructions_run = 0;
+	char input[2];
+	byte value;
+
 	struct CPU cpu;
 	reset_cpu(&cpu);
 	load_rom(&cpu, argv[1]);
 
-	size_t total_instructions_run = 0;
-
 	while(1)
 	{
-		//Fetch
+		/*Fetch*/
 		MOV_PC_MAR(&cpu);
 		INC_PC(&cpu);
 		READ(&cpu);
 		MOV_MDR_IR(&cpu);
-		//Decode & Execute
+		/*Decode & Execute*/
 		total_instructions_run++;
 		switch(cpu.IR)
 		{
@@ -169,14 +169,12 @@ int main(int argc, char* argv[])
 				MOV_MDR_B(&cpu);
 				ALU_SUB(&cpu);
 				break;
-			case INP:
-				char input[2];
-					
+			case INP:	
 				printf("INP: ");
 				scanf("%s", input);
 				printf("\n");
 				
-				byte value = (byte)strtol(input, NULL, 0);//Stack smashing...
+				value = (byte)strtol(input, NULL, 0);/*Stack smashing...*/
 				WRITE_IOR(&cpu, value);
 				MOV_IOR_A(&cpu);
 				break;
@@ -207,6 +205,6 @@ int main(int argc, char* argv[])
 		}
 	}
 	end_execution:
-	printf("\n\nProgram Terminated in %i Cycles\n\n", total_instructions_run);
+	printf("\n\nProgram Terminated in %u Cycles\n\n", total_instructions_run);
 	return 0;
 }

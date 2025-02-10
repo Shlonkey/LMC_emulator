@@ -18,14 +18,14 @@
 typedef uint8_t byte;
 
 struct CPU {
-	byte PC;	//Program Counter
-	byte A;		//Accumulator
-	byte B;		//Secondary ALU register
-	byte MAR;	//Memory Address Register
-	byte MDR;	//Memory Data Register
-	byte IR;	//Instruction Register
-	byte IOR;	//User IO Register
-	byte MEM[MEMORY_SIZE];	//Main Memory
+	byte PC;	/*Program Counter*/
+	byte A;		/*Accumulator*/
+	byte B;		/*Secondary ALU register*/
+	byte MAR;	/*Memory Address Register*/
+	byte MDR;	/*Memory Data Register*/
+	byte IR;	/*Instruction Register*/
+	byte IOR;	/*User IO Register*/
+	byte MEM[MEMORY_SIZE];	/*Main Memory*/
 };
 
 #endif

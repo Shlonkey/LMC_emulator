@@ -13,7 +13,7 @@
 struct Variable
 {
 	char* name;
-	size_t length;
+	unsigned char length;
 
 	byte value;
 	byte address;
@@ -22,7 +22,7 @@ struct Variable
 struct Lable
 {
 	char* name;
-	size_t length;
+	unsigned char length;
 
 	byte address;
 };
@@ -30,14 +30,14 @@ struct Lable
 struct Token
 {
 	char* name;
-	size_t length;
+	unsigned char length;
 };
 
 struct Token_Counts
 {
-	size_t number_of_variables;
-	size_t number_of_lables;
-	size_t number_of_instruction_tokens;
+	unsigned char number_of_variables;
+	unsigned char number_of_lables;
+	unsigned char number_of_instruction_tokens;
 };
 
 byte decode_opcode(char* token)
@@ -66,18 +66,9 @@ byte decode_opcode(char* token)
 		return NOT_AN_INSTRUCTION;
 }
 
-void copy_char_array(char* source, char* dest, size_t length)
-{
-	for(size_t i = 0; i < length; i++)
-	{
-		dest[i] = source[i];
-	}
-	return;
-}
-
 void replace(char* source, char char_to_replace, char char_to_replace_with)
 {
-	size_t i = 0;
+	unsigned char i = 0;
 	while(source[i] != '\0')
 	{
 		source[i] = (source[i] == char_to_replace) ? char_to_replace_with : source[i];
@@ -88,17 +79,24 @@ void replace(char* source, char char_to_replace, char char_to_replace_with)
 
 char* unpair_lables(char* source)
 {
-	size_t number_of_lables = 0;
-	size_t number_of_chars = 0;
-	for(size_t index = 0; source[index] != '\0'; index++, number_of_chars++)
+	unsigned char number_of_lables = 0;
+	unsigned char number_of_chars = 0;
+	unsigned char index;
+	char* new_char_stream;
+	char c;
+	unsigned char offset;
+
+	for(index = 0; source[index] != '\0'; index++, number_of_chars++)
 	{
 		number_of_lables += (source[index] == ':' ? 1 : 0);
 	}
-	char* new_char_stream = (char*)malloc(sizeof(char) * (number_of_chars + number_of_lables));
 	
-	for(size_t index = 0, offset = 0; index < number_of_chars; index++)
+	new_char_stream = (char*)malloc(sizeof(char) * (number_of_chars + number_of_lables));
+	
+	for(index = 0, offset = 0; index < number_of_chars; index++)
 	{
-		char c = source[index];
+		c = source[index];
+		
 		new_char_stream[index + offset] = c;
 		if(c == ':') {
 			new_char_stream[index + offset + 1] = ' ';
@@ -107,26 +105,30 @@ char* unpair_lables(char* source)
 	return new_char_stream;
 }
 
-char* remove_comments(char* char_stream, size_t char_stream_length)
+char* remove_comments(char* char_stream, unsigned int char_stream_length)
 {
-	size_t new_char_stream_length = 0;
+	unsigned int new_char_stream_length = 0;
 	bool in_comment = false;
-	for(size_t i = 0; i < char_stream_length; i++)
+	unsigned int i;
+	char c;
+	char* new_char_stream;
+	unsigned int new_i;
+
+	for(i = 0; i < char_stream_length; i++)
 	{
-		char c = char_stream[i];
+		c = char_stream[i];
 		if(c == ';')
 			in_comment = true;
 		else if(c == '\n')
 			in_comment = false;
 		if(in_comment == false)
-		       new_char_stream_length++;	
+			   new_char_stream_length++;	
 	}
-	char* new_char_stream = (char*)malloc(sizeof(char) * new_char_stream_length);
+	new_char_stream = (char*)malloc(sizeof(char) * new_char_stream_length);
 	in_comment = false;
-	size_t new_i = 0;
-	for(size_t i = 0; i < char_stream_length; i++)
+	for(i = 0, new_i = 0; i < char_stream_length; i++)
 	{
-		char c = char_stream[i];
+		c = char_stream[i];
 		
 		if(c == ';')
 			in_comment = true;
@@ -142,53 +144,66 @@ char* remove_comments(char* char_stream, size_t char_stream_length)
 
 char* remove_repeated_whitespace(char* char_stream)
 {
-    if (!char_stream) return NULL;
+	
+	unsigned int char_count = 0;
+	unsigned int index = 0;
+	unsigned int new_index = 0;
+	char* new_char_stream;	
 
-    size_t char_count = 0;
-    size_t index = 0;
+	if (!char_stream) return NULL;
+	
+	while (char_stream[index] != '\0') {
+		if (!(char_stream[index] == ' ' && char_stream[index + 1] == ' ')) {
+			char_count++;
+		}
+		index++;
+	}
 
-    while (char_stream[index] != '\0') {
-        if (!(char_stream[index] == ' ' && char_stream[index + 1] == ' ')) {
-            char_count++;
-        }
-        index++;
-    }
+	new_char_stream = (char*)malloc(sizeof(char) * (char_count + 1));
+	if (!new_char_stream) return NULL; /* Handle memory allocation failure*/
 
-    char* new_char_stream = (char*)malloc(sizeof(char) * (char_count + 1));
-    if (!new_char_stream) return NULL; // Handle memory allocation failure
+	index = 0;
 
-    index = 0;
-    size_t new_index = 0;
+	while (char_stream[index] != '\0') {
+		if (!(char_stream[index] == ' ' && char_stream[index + 1] == ' ')) {
+			new_char_stream[new_index++] = char_stream[index];
+		}
+		index++;
+	}
 
-    while (char_stream[index] != '\0') {
-        if (!(char_stream[index] == ' ' && char_stream[index + 1] == ' ')) {
-            new_char_stream[new_index++] = char_stream[index];
-        }
-        index++;
-    }
+	new_char_stream[new_index] = '\0';
 
-    new_char_stream[new_index] = '\0';
-
-    return new_char_stream;
+	return new_char_stream;
 }
 
 char* strip(char* non_stripped_stream)
 {
-	size_t length = 0;
-	for(size_t i = 0; non_stripped_stream[i] != '\0'; i++)
+	unsigned int length = 0;
+	unsigned int i;
+	char c;
+
+	unsigned int first_ws;
+	unsigned int last_ws;
+	unsigned int chars_to_remove;
+	unsigned int new_length;
+	char* stripped_stream;
+	unsigned int offset;
+
+	for(i = 0; non_stripped_stream[i] != '\0'; i++)
 	{
 		length++;
 	}
 
-	int first_ws = (non_stripped_stream[0] == ' ' ? 1 : 0);
-	int last_ws = (non_stripped_stream[length - 1] == ' ' ? 1 : 0);
-	size_t chars_to_remove = first_ws + last_ws;
-	size_t new_length = length - chars_to_remove;
-	char* stripped_stream = (char*)malloc(sizeof(char) * new_length);
-	int offset = 0;
-	for(size_t i = 0; non_stripped_stream[i] != '\0'; i++)
+	first_ws = (non_stripped_stream[0] == ' ' ? 1 : 0);
+	last_ws = (non_stripped_stream[length - 1] == ' ' ? 1 : 0);
+	chars_to_remove = first_ws + last_ws;
+	new_length = length - chars_to_remove;
+	stripped_stream = (char*)malloc(sizeof(char) * new_length);
+	offset = 0;
+
+	for(i = 0; non_stripped_stream[i] != '\0'; i++)
 	{
-		char c = non_stripped_stream[i];
+		c = non_stripped_stream[i];
 		if(i == 0 && c == ' ') {
 			offset++;
 			continue; }
@@ -202,34 +217,41 @@ char* strip(char* non_stripped_stream)
 
 size_t split_stream_by_char(char* stream, struct Token** p_tokens, char c)
 {
-	size_t token_count = 1;	
-	for(size_t index = 0; stream[index] != '\0'; index++)
+	unsigned char token_count = 1;	
+	unsigned int stream_index;
+	unsigned char token_index;
+	char current_char;
+	unsigned char token_offset;
+	struct Token* local_out_tokens;
+	struct Token* p_token;
+	unsigned char within_token_char_index = 0;
+
+	for(stream_index = 0; stream[stream_index] != '\0'; stream_index++)
 	{
-		token_count += (stream[index] == ' ' ? 1 : 0);
+		token_count += (stream[stream_index] == c ? 1 : 0);
 	}
 
-	struct Token* local_out_tokens = (struct Token*)malloc(sizeof(struct Token) * token_count);
+	local_out_tokens = (struct Token*)malloc(sizeof(struct Token) * token_count);
 
-	for(size_t index = 0, token_index = 0; stream[index] != '\0'; index++)
+	for(stream_index = 0, token_index = 0; stream[stream_index] != '\0'; stream_index++)
 	{
-		char current_char = stream[index];
-		if(current_char == ' ') {
+		current_char = stream[stream_index];
+		if(current_char == c) {
 			token_index++;
 		} else {
 			local_out_tokens[token_index].length++;
 		}
 	}
 	
-	for(size_t index = 0; index < token_count; index++)
+	for(token_index = 0, token_offset = 0; token_index < token_count; token_index++)
 	{
-		local_out_tokens[index].name = (char*)malloc(sizeof(char) * local_out_tokens[index].length);
+		local_out_tokens[token_index].name = (char*)malloc(sizeof(char) * local_out_tokens[token_index].length);
 	}
 	
-	size_t token_offset = 0;
-	for(size_t token_index = 0; token_index < token_count; token_index++)
+	for(token_index = 0; token_index < token_count; token_index++)
 	{
-		struct Token* p_token = local_out_tokens + token_index;
-		for(size_t within_token_char_index = 0; within_token_char_index < p_token->length; within_token_char_index++)
+		p_token = local_out_tokens + token_index;
+		for(within_token_char_index = 0; within_token_char_index < p_token->length; within_token_char_index++)
 		{
 			p_token->name[within_token_char_index] = stream[token_offset + within_token_char_index];
 		}
@@ -240,15 +262,17 @@ size_t split_stream_by_char(char* stream, struct Token** p_tokens, char c)
 	return token_count;
 }
 
-void calculate_token_type_counts(struct Token* tokens, size_t num_tokens, struct Token_Counts* p_token_counts)
+void calculate_token_type_counts(struct Token* tokens, unsigned char num_tokens, struct Token_Counts* p_token_counts)
 {
-	size_t number_of_variables = 0;
-	size_t number_of_lables = 0;
-	size_t number_of_tokens_corresponding_to_variables = 0;
+	unsigned char number_of_variables = 0;
+	unsigned char number_of_lables = 0;
+	unsigned char number_of_tokens_corresponding_to_variables = 0;
+	unsigned char token_index;
+	struct Token token;
 
-	for(size_t token_index = 0; token_index < num_tokens; token_index++)
+	for(token_index = 0; token_index < num_tokens; token_index++)
 	{
-		struct Token token = tokens[token_index];
+		token = tokens[token_index];
 		if(token.name[token.length - 1] == ':')
 		{
 			number_of_lables++;
@@ -278,55 +302,68 @@ void calculate_token_type_counts(struct Token* tokens, size_t num_tokens, struct
 	return;
 }
 
-void split_tokens_by_type(struct Token* tokens, size_t num_tokens, struct Variable* variables, struct Lable* lables, struct Token* instruction_tokens)
+void split_tokens_by_type(struct Token* tokens, unsigned char num_tokens, struct Variable* variables, struct Lable* lables, struct Token* instruction_tokens)
 {
 	byte location_counter = 0;
-	size_t variable_index = 0;
-	size_t lable_index = 0;
-	size_t instruction_index = 0;
+	unsigned char variable_index = 0;
+	unsigned char lable_index = 0;
+	unsigned char instruction_index = 0;
+	unsigned char token_index;
+	unsigned char token_length;
+	char* variable_name;
+	char* default_value;
 
-	for(size_t token_index = 0; token_index < num_tokens; token_index++)
+	struct Token token;
+	struct Lable* p_lable;
+	struct Variable* p_variable;
+	struct Token* p_instruction_token; 
+
+
+	for(token_index = 0; token_index < num_tokens; token_index++)
 	{
-		struct Token token = tokens[token_index];
-		size_t token_length = token.length;
-		if(token.name[token_length - 1] == ':') {//Lable line
-			struct Lable* p_lable = lables + lable_index;
+		token = tokens[token_index];
+		token_length = token.length;
+		if(token.name[token_length - 1] == ':') {/*Lable line*/
+			p_lable = lables + lable_index;
 			p_lable->length = token_length - 1;
 			p_lable->name = (char*)malloc(sizeof(char) * token_length - 1);
 		
-			copy_char_array(token.name, p_lable->name, token_length - 1);
+			memcpy(p_lable->name, token.name, token_length - 1);
 			
 			p_lable->address = location_counter;
 			lable_index++;
 			continue; 
 		} if(token_length == 3 && (strcmp(token.name, "DAT") == 0)) {
 			token_index++;
-			struct Variable* p_variable = variables + variable_index;
-			char* variable_name = token.name;
+			token = tokens[token_index];
+			p_variable = variables + variable_index;
+			variable_name = token.name;
 			token_length = token.length;
 			p_variable->length = token_length;
 			p_variable->name = (char*)malloc(sizeof(char) * token_length);
 			
-			copy_char_array(variable_name, p_variable->name, token_length);
+			memcpy(p_variable->name, variable_name, token_length);
 			
 			if(token_index < num_tokens - 1)
 			{
-				char* default_value = tokens[token_index + 1].name;
+				default_value = tokens[token_index + 1].name;
 				if(default_value[0] == '0' && default_value[1] == 'x')
 				{
 					byte value = strtol(default_value, NULL, 16);
 					p_variable->value = value;
 					token_index++;
+				} else {
+					p_variable->value = 0xEE;
 				}
 			}
 			variable_index++;
 			continue;
 		} else {
-			struct Token* p_instruction_token = instruction_tokens + instruction_index;
+			p_instruction_token = instruction_tokens + instruction_index;
 			p_instruction_token->length = token_length;
 			p_instruction_token->name = (char*)malloc(sizeof(char) * token_length);
 			
-			copy_char_array(token.name, p_instruction_token->name, token_length);
+			memcpy(p_instruction_token->name, token.name, token_length);
 			
 			instruction_index++;
 			location_counter++; 
@@ -334,22 +371,29 @@ void split_tokens_by_type(struct Token* tokens, size_t num_tokens, struct Variab
 	}	
 }
 
-void set_variable_addresses(struct Variable* variables, size_t number_of_variables)//Could put variables directly after instructions, however this is nice for now.
+void set_variable_addresses(struct Variable* variables, unsigned char number_of_variables)/*Could put variables directly after instructions, however this is nice for now.*/
 {
-	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
+	unsigned char variable_index;
+	for(variable_index = 0; variable_index < number_of_variables; variable_index++)
 	{
 		variables[variable_index].address = MEMORY_SIZE - variable_index - 1;	
 	}
 }
 
-void replace_lables_with_address(byte* program, struct Lable* lables, size_t number_of_lables, struct Token* instruction_tokens, size_t number_of_instruction_tokens)
+void replace_lables_with_address(byte* program, struct Lable* lables, unsigned char number_of_lables, struct Token* instruction_tokens, unsigned char number_of_instruction_tokens)
 {
-	for(size_t token_index = 0; token_index < number_of_instruction_tokens; token_index++)
+	unsigned char token_index;
+	unsigned char lable_index;
+
+	struct Token token;
+	struct Lable lable;
+
+	for(token_index = 0; token_index < number_of_instruction_tokens; token_index++)
 	{
-		struct Token token = instruction_tokens[token_index];
-		for(size_t lable_index = 0; lable_index < number_of_lables; lable_index++)
+		token = instruction_tokens[token_index];
+		for(lable_index = 0; lable_index < number_of_lables; lable_index++)
 		{
-			struct Lable lable = lables[lable_index];
+			lable = lables[lable_index];
 			if(strcmp(lable.name, token.name) == 0) {
 				program[token_index] = lable.address;
 				break;
@@ -358,14 +402,19 @@ void replace_lables_with_address(byte* program, struct Lable* lables, size_t num
 	}
 }
 
-void replace_variables_with_address(byte* program, struct Variable* variables, size_t number_of_variables, struct Token* instruction_tokens, size_t number_of_instruction_tokens)
+void replace_variables_with_address(byte* program, struct Variable* variables, unsigned char number_of_variables, struct Token* instruction_tokens, unsigned char number_of_instruction_tokens)
 {
-	for(size_t token_index = 0; token_index < number_of_instruction_tokens; token_index++)
+	unsigned char token_index;
+	unsigned char variable_index;
+	struct Token token;
+	struct Variable variable;
+
+	for(token_index = 0; token_index < number_of_instruction_tokens; token_index++)
 	{
-		struct Token token = instruction_tokens[token_index];
-		for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
+		token = instruction_tokens[token_index];
+		for(variable_index = 0; variable_index < number_of_variables; variable_index++)
 		{
-			struct Variable variable = variables[variable_index];
+			variable = variables[variable_index];
 			if(strcmp(variable.name, token.name) == 0) {
 				program[token_index] = variable.address;
 				break;
@@ -374,13 +423,17 @@ void replace_variables_with_address(byte* program, struct Variable* variables, s
 	}
 }
 
-void replace_instruction_with_opcode(byte* program, struct Token* instruction_tokens, size_t number_of_instruction_tokens)
+void replace_instruction_with_opcode(byte* program, struct Token* instruction_tokens, unsigned char number_of_instruction_tokens)
 {
-	for(size_t token_index = 0; token_index < number_of_instruction_tokens; token_index++)
+	unsigned char token_index;
+	struct Token instruction_token;
+	byte opcode;
+
+	for(token_index = 0; token_index < number_of_instruction_tokens; token_index++)
 	{
-		struct Token instruction_token = instruction_tokens[token_index];
-		byte opcode = decode_opcode(instruction_token.name);
-		//if token in pneumonics, convert.
+		instruction_token = instruction_tokens[token_index];
+		opcode = decode_opcode(instruction_token.name);
+		/*if token in pneumonics, convert.*/
 		if(opcode != NOT_AN_INSTRUCTION) {
 			program[token_index] = opcode;
 		} else if(instruction_token.name[0] == '0' && instruction_token.name[1] == 'x') {
@@ -395,36 +448,42 @@ void translate_to_machine_code(byte* program, struct Token* instruction_tokens, 
 	replace_instruction_with_opcode(program, instruction_tokens, token_counts.number_of_instruction_tokens);
 }
 
-void load_initial_variable_values(byte* program, struct Variable* variables, size_t number_of_variables)
+void load_initial_variable_values(byte* program, struct Variable* variables, unsigned char number_of_variables)
 {
-	for(size_t variable_index = 0; variable_index < number_of_variables; variable_index++)
+	unsigned char variable_index;
+	struct Variable variable;
+
+	for(variable_index = 0; variable_index < number_of_variables; variable_index++)
 	{
-		struct Variable variable = variables[variable_index];
+		variable = variables[variable_index];
 		program[variable.address] = variable.value;
 	}
 }
 
-void free_variables(struct Variable* variables, size_t count)
+void free_variables(struct Variable* variables, unsigned char count)
 {
-	for(size_t index = 0; index < count; index++)
+	unsigned char index;
+	for(index = 0; index < count; index++)
 	{
 		free(variables[index].name);	
 	}
 	free(variables);
 }
 
-void free_lables(struct Lable* lables, size_t count)
+void free_lables(struct Lable* lables, unsigned char count)
 {
-	for(size_t index = 0; index < count; index++)
+	unsigned char index;
+	for(index = 0; index < count; index++)
 	{
 		free(lables[index].name);
 	}
 	free(lables);
 }
 
-void free_tokens(struct Token* tokens, size_t count)
+void free_tokens(struct Token* tokens, unsigned char count)
 {
-	for(size_t index = 0; index < count; index++)
+	unsigned char index;
+	for(index = 0; index < count; index++)
 	{
 		free(tokens[index].name);
 	}
@@ -434,45 +493,58 @@ void free_tokens(struct Token* tokens, size_t count)
 int main(int argc, char* argv[])
 {
 	struct stat sb;
-	int fd = open(argv[1], O_RDONLY);
-        fstat(fd, &sb);           /* To obtain file size */
-	int file_size = sb.st_size;
-	char* address = (char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	int fd;
+	int file_size;
+	char* address;
+	char* char_stream_without_comments;
+	char* char_stream_with_comments;
+	char* new_char_stream;
+	char* token_char_stream_not_stripped;
+	char* token_char_stream_stripped;
+	struct Token* tokens;
+	unsigned char num_tokens;
+	struct Token_Counts token_counts;
+	struct Variable* variables;
+	struct Lable* lables;
+	struct Token* instruction_tokens;
+	byte* program;
+	FILE* p_file;
+
+	fd = open(argv[1], O_RDONLY);
+		fstat(fd, &sb);		   /* To obtain file size */
+	file_size = sb.st_size;
+	address = (char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	
-	char* char_stream_with_comments = (char*)malloc(sizeof(char) * file_size);
-	copy_char_array(address, char_stream_with_comments, file_size);
+	char_stream_with_comments = (char*)malloc(sizeof(char) * file_size);
+	memcpy(char_stream_with_comments, address, file_size);
+	
 	munmap(address, file_size);
 	close(fd);
 
-	char* char_stream = remove_comments(char_stream_with_comments, file_size);
+	char_stream_without_comments = remove_comments(char_stream_with_comments, file_size);
 	free(char_stream_with_comments);
-	replace(char_stream, '\t', ' ');
-	replace(char_stream, '\n', ' ');
+	replace(char_stream_without_comments, '\t', ' ');
+	replace(char_stream_without_comments, '\n', ' ');
 	
-	char* new_char_stream = unpair_lables(char_stream);
-	free(char_stream);
+	new_char_stream = unpair_lables(char_stream_without_comments);
+	free(char_stream_without_comments);
 	
-	char* token_char_stream_not_stripped = remove_repeated_whitespace(new_char_stream);
+	token_char_stream_not_stripped = remove_repeated_whitespace(new_char_stream);
 	free(new_char_stream);
 	
 
-	char* token_char_stream_stripped = strip(token_char_stream_not_stripped);
+	token_char_stream_stripped = strip(token_char_stream_not_stripped);
 	free(token_char_stream_not_stripped);
 
-	//Figure out how to turn this into the token structs 
-	//----------------------------
-	struct Token* tokens;
-	size_t num_tokens = split_stream_by_char(token_char_stream_stripped, &tokens, ' ');
-	//----------------------------
+	num_tokens = split_stream_by_char(token_char_stream_stripped, &tokens, ' ');
 	
 	free(token_char_stream_stripped);
 
-	struct Token_Counts token_counts;
 	calculate_token_type_counts(tokens, num_tokens, &token_counts);
 
-	struct Variable* variables = (struct Variable*)malloc(sizeof(struct Variable) * token_counts.number_of_variables);
-	struct Lable* lables = (struct Lable*)malloc(sizeof(struct Lable) * token_counts.number_of_lables);
-	struct Token* instruction_tokens = (struct Token*)malloc(sizeof(struct Token) * token_counts.number_of_instruction_tokens);
+	variables = (struct Variable*)malloc(sizeof(struct Variable) * token_counts.number_of_variables);
+	lables = (struct Lable*)malloc(sizeof(struct Lable) * token_counts.number_of_lables);
+	instruction_tokens = (struct Token*)malloc(sizeof(struct Token) * token_counts.number_of_instruction_tokens);
 
 	split_tokens_by_type(tokens, num_tokens, variables, lables, instruction_tokens);
 	
@@ -480,17 +552,16 @@ int main(int argc, char* argv[])
 	
 	set_variable_addresses(variables, token_counts.number_of_variables);	
 
-	byte* program = (byte*)malloc(sizeof(byte) * MEMORY_SIZE);
-	
+	program = (byte*)malloc(sizeof(byte) * MEMORY_SIZE);
 	translate_to_machine_code(program, instruction_tokens, lables, variables, token_counts);
 	
 	load_initial_variable_values(program, variables, token_counts.number_of_variables);
-
+	
 	free_variables(variables, token_counts.number_of_variables);
 	free_lables(lables, token_counts.number_of_lables);
 	free_tokens(instruction_tokens, token_counts.number_of_instruction_tokens);
 
-	FILE* p_file = fopen(argv[2], "wb");
+	p_file = fopen(argv[2], "wb");
 	fwrite(program, sizeof(byte), MEMORY_SIZE, p_file);
 	fclose(p_file);
 

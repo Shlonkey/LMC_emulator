@@ -6,4 +6,4 @@ INP
 ADD TEMP
 
 OUT
-
+HLT
